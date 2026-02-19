@@ -8,7 +8,7 @@ namespace Orleans.BankAccount.Grains;
 public class AccountState
 {
     [Id(0)] 
-    public double Balance { get; set; } = 1_000;
+    public decimal Balance { get; set; } = 1_000m;
     
     [Id(1)]
     public string OwnerName { get; set; } = string.Empty;
@@ -26,23 +26,34 @@ public sealed class BankAccountGrain : Grain, IBankAccountGrain
     }
         
     
-    public Task Withdraw(int amount)
+    public Task Withdraw(decimal amount)
     {
-        return _account.PerformUpdate(account => account.Balance -= amount);
+        return _account.PerformUpdate(account =>
+        {
+            if (account.Balance < amount)
+            {
+                throw new InvalidOperationException($"Insufficient funds. Current balance: {account.Balance}, requested withdrawal: {amount}");
+            }
+            account.Balance -= amount;
+        });
     }
 
-    public Task Deposit(int amount)
+    public Task Deposit(decimal amount)
     {
-       return _account.PerformUpdate(account => account.Balance += amount);
+        if (amount <= 0)
+        {
+            throw new ArgumentException("Deposit amount must be positive", nameof(amount));
+        }
+        return _account.PerformUpdate(account => account.Balance += amount);
     }
 
-    public Task<double> GetBalance()
+    public Task<decimal> GetBalance()
     {
-        return _account.PerformRead(account => account.Balance = account.Balance);
+        return _account.PerformRead(account => account.Balance);
     }
 
     public Task<string> GetOwner()
     {
-        return _account.PerformRead(account => account.OwnerName = account.OwnerName);
+        return _account.PerformRead(account => account.OwnerName);
     }
 }
