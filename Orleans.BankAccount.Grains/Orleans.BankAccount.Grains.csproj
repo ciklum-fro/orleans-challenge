@@ -7,6 +7,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="DotPulsar" Version="5.2.0" />
+      <PackageReference Include="Microsoft.Orleans.EventSourcing" Version="10.0.1" />
       <PackageReference Include="Microsoft.Orleans.Transactions" Version="10.0.0" />
     </ItemGroup>
 

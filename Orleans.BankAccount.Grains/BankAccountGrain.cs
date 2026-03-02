@@ -1,18 +1,11 @@
-﻿using Orleans.BankAccount.Interfaces;
+﻿using Orleans.BankAccount.Grains.States;
+using Orleans.BankAccount.Interfaces;
 using Orleans.Concurrency;
 using Orleans.Transactions.Abstractions;
 
 namespace Orleans.BankAccount.Grains;
 
-[GenerateSerializer]
-public class AccountState
-{
-    [Id(0)] 
-    public decimal Balance { get; set; } = 1_000m;
-    
-    [Id(1)]
-    public string OwnerName { get; set; } = string.Empty;
-}
+
 
 [Reentrant]
 public sealed class BankAccountGrain : Grain, IBankAccountGrain

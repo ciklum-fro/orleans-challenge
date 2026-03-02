@@ -1,0 +1,84 @@
+﻿version: '3.8'
+
+services:
+  # PostgreSQL Database - For clustering and grain storage
+  postgres:
+    image: postgres:16-alpine
+    container_name: orleans-postgres
+    environment:
+      POSTGRES_DB: orleans
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./Database/postgres-setup.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - orleans-network
+
+  # Apache Pulsar - Message broker for event messaging
+  pulsar:
+    image: apachepulsar/pulsar:3.2.0
+    container_name: orleans-pulsar
+    command: bin/pulsar standalone
+    environment:
+      PULSAR_MEM: "-Xms512m -Xmx512m"
+    ports:
+      - "6650:6650"   # Pulsar binary protocol port
+      - "8080:8080"   # Pulsar HTTP REST API
+    volumes:
+      - pulsar-data:/pulsar/data
+    healthcheck:
+      test: ["CMD-SHELL", "bin/pulsar-admin brokers healthcheck"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - orleans-network
+
+  # Orleans Silo Server - BankAccount application
+  orleans-server:
+    build:
+      context: .
+      dockerfile: Orleans.BankAccount.Silo/Dockerfile
+    container_name: orleans-server
+    environment:
+      # PostgreSQL Configuration
+      ORLEANS_DB_CONNECTION: "Host=postgres;Port=5432;Database=orleans;Username=postgres;Password=postgres"
+      # Pulsar Configuration
+      PULSAR_SERVICE_URL: "pulsar://pulsar:6650"
+      # Orleans Configuration
+      ORLEANS_CLUSTER_ID: "dev-cluster"
+      ORLEANS_SERVICE_ID: "BankAccountService"
+      # ASP.NET Core Configuration
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://+:8081"
+    ports:
+      - "8081:8081"     # Orleans Silo Gateway
+      - "11111:11111"   # Orleans Silo Port
+      - "30000:30000"   # Orleans Gateway Port
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pulsar:
+        condition: service_healthy
+    networks:
+      - orleans-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    driver: local
+  pulsar-data:
+    driver: local
+
+networks:
+  orleans-network:
+    driver: bridge
+
